@@ -1,0 +1,107 @@
+name: Refresh catalog
+
+on:
+  schedule:
+    # Every Monday at 04:17 UTC. Off-the-hour to be polite to NCBI.
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "How to deliver the refreshed catalog"
+        required: true
+        default: pr
+        type: choice
+        options:
+          - pr      # open a pull request for review (default, and what the schedule uses)
+          - direct  # commit straight to the default branch
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: refresh-catalog
+  cancel-in-progress: false
+
+jobs:
+  harvest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Harvest GEO + ArrayExpress
+        env:
+          # Optional: add a repository secret named NCBI_API_KEY to raise the
+          # NCBI rate limit from 3 to 10 requests per second.
+          NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
+        run: python scripts/harvest.py
+
+      - name: Summarise
+        id: summary
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, pathlib
+          m = json.loads(pathlib.Path("data/meta.json").read_text())
+          print(f"## Catalog refreshed\n")
+          print(f"- **{m['total']:,}** datasets total")
+          print(f"- **{m.get('new_since_last_run', 0):,}** new since the last run")
+          print(f"- Generated {m['generated']}\n")
+          print("| Modality | Count |\n| --- | ---: |")
+          for k, v in m["by_modality"].items():
+              print(f"| {k} | {v:,} |")
+          PY
+          echo "total=$(python -c "import json;print(json.load(open('data/meta.json'))['total'])")" >> "$GITHUB_OUTPUT"
+          echo "new=$(python -c "import json;print(json.load(open('data/meta.json')).get('new_since_last_run',0))")" >> "$GITHUB_OUTPUT"
+
+      - name: Check for changes
+        id: diff
+        run: |
+          if [ -z "$(git status --porcelain -- data/)" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No catalog changes."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git status --short -- data/
+          fi
+
+      - name: Commit directly
+        if: steps.diff.outputs.changed == 'true' && inputs.mode == 'direct'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git commit -m "Refresh catalog: ${{ steps.summary.outputs.total }} datasets (${{ steps.summary.outputs.new }} new)"
+          git push
+
+      - name: Open pull request
+        if: steps.diff.outputs.changed == 'true' && inputs.mode != 'direct'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="catalog-refresh/$(date -u +%Y-%m-%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BRANCH"
+          git add data/
+          git commit -m "Refresh catalog: ${{ steps.summary.outputs.total }} datasets (${{ steps.summary.outputs.new }} new)"
+          git push --force-with-lease origin "$BRANCH"
+
+          {
+            printf 'Automated harvest from NCBI GEO and EBI ArrayExpress.\n\n'
+            printf -- '- **%s** datasets in the catalog\n' "${{ steps.summary.outputs.total }}"
+            printf -- '- **%s** accessions not present in the previous catalog\n\n' "${{ steps.summary.outputs.new }}"
+            printf 'Accession, title, description, organism, sample count, release date and PubMed ID come verbatim from the source databases. Modality, platform, disease and tissue are derived by the rules in `scripts/harvest.py` - skim the diff for obvious mislabels before merging.\n'
+          } > /tmp/pr-body.md
+
+          if [ "$(gh pr list --head "$BRANCH" --state open --json number --jq 'length')" = "0" ]; then
+            gh pr create --title "Refresh catalog (${{ steps.summary.outputs.new }} new datasets)" \
+                         --body-file /tmp/pr-body.md --head "$BRANCH" --base "${{ github.event.repository.default_branch }}"
+          else
+            echo "A pull request for $BRANCH is already open; it now carries the latest harvest."
+          fi
