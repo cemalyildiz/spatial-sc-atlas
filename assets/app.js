@@ -541,10 +541,12 @@
         r.accession.slice(0, -3) + 'nnn/' + r.accession + '/'))
         .replace(/^ftp:\/\//, 'https://');
       if (base.slice(-1) !== '/') base += '/';
-      var a2 = el('a', null, 'Supplementary files');
-      a2.href = base + 'suppl/';
+      // Link the series root, not suppl/ — a series with no supplementary
+      // files has no suppl/ directory and that link would 404.
+      var a2 = el('a', null, 'Download (FTP)');
+      a2.href = base;
       a2.target = '_blank'; a2.rel = 'noopener';
-      a2.title = 'Processed matrices and images, where the authors deposited them';
+      a2.title = 'Series directory: suppl/ holds processed matrices and images, matrix/ the series matrix';
       links.appendChild(a2);
     }
     if (r.pmid) {
@@ -772,7 +774,7 @@
       lab.setAttribute('class', 'axis');
       lab.setAttribute('x', x + bw / 2); lab.setAttribute('y', H - 8);
       lab.setAttribute('text-anchor', 'middle');
-      lab.textContent = years.length > 14 ? String(y).slice(2) : String(y);
+      lab.textContent = years.length > 20 ? String(y).slice(2) : String(y);
       svg.appendChild(lab);
     });
 
