@@ -20,7 +20,8 @@ single-cell data, which is what you need for deconvolution, label transfer and s
 | Production method | Imaging-based · Sequencing-based |
 | Platform | Xenium, MERFISH/MERSCOPE, CosMx, seqFISH, STARmap, in situ sequencing, Visium, Visium HD, GeoMx DSP, Slide-seq, Stereo-seq, Slide-tags, DBiT-seq, 10x Chromium, … |
 | Disease group | Cancer · Other disease · Unspecified |
-| Disease / cancer type | NSCLC, SCLC, breast, colorectal, glioma/GBM, pancreatic, melanoma, …, plus non-cancer categories (fibrosis, neurodegenerative, autoimmune, cardiovascular, …) |
+| Disease / cancer type | NSCLC, SCLC, breast, colorectal, glioma/GBM, meningioma, pancreatic, melanoma, …, plus non-cancer categories (fibrosis, neurodegenerative, autoimmune, cardiovascular, …) |
+| Subtype (multi-value) | LUAD, LUSC, LCNEC, TNBC, HER2-positive, luminal, ccRCC, CRPC, NEPC, ESCC, PDAC, HCC, DLBCL, B-ALL, T-ALL, CLL, MIBC, HGSOC, HNSCC, DIPG, plus molecular labels — EGFR-mutant, ALK-rearranged, KRAS-mutant, IDH-mutant, MSI-high, HPV-positive |
 | Tissue / organ | Lung, brain/CNS, breast, colon/intestine, liver, kidney, … |
 | Organism | Human · Mouse · Human &amp; Mouse |
 | Source database | GEO · ArrayExpress |
@@ -36,7 +37,7 @@ straight into a download script.
 
 | Verbatim from the source database | Derived here, automatically |
 | --- | --- |
-| accession · title · description · organism · sample count · release date · PubMed ID | modality · platform · imaging vs sequencing · disease category · tissue · cell count |
+| accession · title · description · organism · sample count · release date · PubMed ID | modality · platform · imaging vs sequencing · disease category · subtype · tissue · cell count |
 
 Derived fields are pattern-matched from each record's title and description by the vocabularies at
 the top of [`scripts/harvest.py`](scripts/harvest.py). They are good enough to filter and browse
@@ -46,6 +47,11 @@ platform and single-cell data; it is a strong hint, not a guarantee that both li
 
 Improving a label means editing a regex in `harvest.py` and re-running the harvest — not hand-editing
 `data/datasets.json`, which is regenerated on every run.
+
+One rule when adding subtype patterns: short abbreviations collide. `ILC` is innate lymphoid cell
+far more often than invasive lobular carcinoma, `IDC` is also interdigitating dendritic cell, `FL`
+and `MCL` hit gene and cell-type names. Those are matched by full phrase only. Check a candidate
+abbreviation against the existing catalog before adding it bare.
 
 ## How it stays current
 

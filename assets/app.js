@@ -18,6 +18,7 @@
     platform: new Set(),
     disease_group: new Set(),
     disease: new Set(),
+    subtypes: new Set(),
     tissue: new Set(),
     organism: new Set(),
     db: new Set(),
@@ -40,6 +41,7 @@
     { key: 'platform_class', title: 'Production method',  open: true,  label: function (v) { return CLASS_LABEL[v] || v; } },
     { key: 'disease_group',  title: 'Disease group',      open: true },
     { key: 'disease',        title: 'Disease / cancer type', open: true },
+    { key: 'subtypes',       title: 'Subtype', multi: true },
     { key: 'platform',       title: 'Platform' },
     { key: 'tissue',         title: 'Tissue / organ' },
     { key: 'organism',       title: 'Organism' },
@@ -109,7 +111,8 @@
   function haystack(r) {
     if (r._h) return r._h;
     r._h = (r.accession + ' ' + r.title + ' ' + r.description + ' ' + r.disease + ' ' +
-            r.tissue + ' ' + r.platform + ' ' + r.organism + ' ' + (r.sc_platform || '')).toLowerCase();
+            r.tissue + ' ' + r.platform + ' ' + r.organism + ' ' + (r.sc_platform || '') +
+            ' ' + (r.subtypes || []).join(' ')).toLowerCase();
     return r._h;
   }
 
@@ -118,7 +121,16 @@
       var k = GROUPS[i].key;
       if (k === skipKey) continue;
       var set = F[k];
-      if (set.size && !set.has(r[k] == null ? '' : String(r[k]))) return false;
+      if (!set.size) continue;
+      var val = r[k];
+      if (Array.isArray(val)) {
+        // multi-value field: the record matches if it carries any selected value
+        var hit = false;
+        for (var v = 0; v < val.length; v++) { if (set.has(val[v])) { hit = true; break; } }
+        if (!hit) return false;
+      } else if (!set.has(val == null ? '' : String(val))) {
+        return false;
+      }
     }
     if (skipKey !== '_year') {
       var y = parseInt(r.year, 10);
@@ -143,7 +155,14 @@
     for (var i = 0; i < DATA.length; i++) {
       var r = DATA[i];
       if (!matchesExcept(r, key)) continue;
-      var v = r[key] == null ? '' : String(r[key]);
+      var raw = r[key];
+      if (Array.isArray(raw)) {
+        for (var a = 0; a < raw.length; a++) {
+          if (raw[a]) counts[raw[a]] = (counts[raw[a]] || 0) + 1;
+        }
+        continue;
+      }
+      var v = raw == null ? '' : String(raw);
       if (!v) continue;
       counts[v] = (counts[v] || 0) + 1;
     }
@@ -199,6 +218,11 @@
       t.title = (CLASS_LABEL[r.platform_class] || '') + ' platform';
       top.appendChild(t);
     }
+    (r.subtypes || []).slice(0, 3).forEach(function (s) {
+      var chip = el('span', 'sub-chip', s);
+      chip.title = 'Subtype detected in the record text';
+      top.appendChild(chip);
+    });
     main.appendChild(top);
 
     main.appendChild(el('h3', null, r.title));
@@ -455,7 +479,7 @@
 
   // ------------------------------------------------------------ URL state --
   var URL_KEYS = { modality: 'm', platform_class: 'pc', platform: 'p', disease_group: 'dg',
-                   disease: 'd', tissue: 't', organism: 'o', db: 'db', access: 'ac' };
+                   disease: 'd', subtypes: 'st', tissue: 't', organism: 'o', db: 'db', access: 'ac' };
 
   function writeURL() {
     var p = new URLSearchParams();
@@ -520,6 +544,7 @@
     row('Platform', r.platform + (r.platform_class ? ' · ' + CLASS_LABEL[r.platform_class] : ''));
     if (r.sc_platform && r.modality !== 'singlecell') row('Single-cell assay', r.sc_platform);
     row('Disease', r.disease + (r.disease_group !== 'Unspecified' ? ' (' + r.disease_group + ')' : ''));
+    if (r.subtypes && r.subtypes.length) row('Subtype', r.subtypes.join(' · '));
     row('Tissue / organ', r.tissue);
     row('Organism', r.organism);
     row('Samples', r.samples ? nf(r.samples) : null);
@@ -612,6 +637,7 @@
       ['Platform', function (r) { return r.platform; }],
       ['Production method', function (r) { return CLASS_LABEL[r.platform_class] || '—'; }],
       ['Disease', function (r) { return r.disease; }],
+      ['Subtype', function (r) { return (r.subtypes || []).join(' · ') || '\u2014'; }],
       ['Tissue', function (r) { return r.tissue; }],
       ['Organism', function (r) { return r.organism; }],
       ['Samples', function (r) { return r.samples ? nf(r.samples) : '—'; }],
@@ -882,11 +908,14 @@
 
   function exportCsv() {
     var cols = ['accession', 'db', 'title', 'modality', 'platform', 'platform_class',
-                'sc_platform', 'disease', 'disease_group', 'tissue', 'organism',
+                'sc_platform', 'disease', 'disease_group', 'subtypes', 'tissue', 'organism',
                 'samples', 'cells', 'year', 'date', 'pmid', 'access', 'url'];
     var lines = [cols.join(',')];
     lastFiltered.forEach(function (r) {
-      lines.push(cols.map(function (c) { return csvEscape(r[c]); }).join(','));
+      lines.push(cols.map(function (c) {
+        var v = r[c];
+        return csvEscape(Array.isArray(v) ? v.join('; ') : v);
+      }).join(','));
     });
     download('spatial-sc-atlas-' + lastFiltered.length + '.csv', lines.join('\n'), 'text/csv;charset=utf-8');
     toast(nf(lastFiltered.length) + ' rows exported');

@@ -126,7 +126,7 @@
         <thead><tr><th>From the source database, verbatim</th><th>Derived here, automatically</th></tr></thead>
         <tbody><tr>
           <td>Accession · title · description · organism · sample count · release date · PubMed ID</td>
-          <td>Modality · platform · imaging vs sequencing · disease category · tissue · cell count</td>
+          <td>Modality · platform · imaging vs sequencing · disease category · subtype · tissue · cell count</td>
         </tr></tbody>
       </table>
       <p>
@@ -147,6 +147,23 @@
         <dt><span class="badge badge-sc">Single-cell</span></dt>
         <dd>Dissociated single-cell or single-nucleus RNA-seq only. Cancer studies only, to keep the catalog focused.</dd>
       </dl>
+
+      <h2>Subtypes</h2>
+      <p>
+        A record can carry several subtype labels at once — a study can be both
+        <strong>LUAD</strong> and <strong>EGFR-mutant</strong> — so the subtype filter matches any
+        one of them rather than a single winner. Histological subtypes (LUAD, LUSC, LCNEC, invasive
+        ductal and lobular, ESCC, ccRCC) and molecular ones (EGFR-mutant, ALK-rearranged,
+        KRAS-mutant, IDH-mutant, HER2-positive, MSI-high, HPV-positive) live in the same list.
+      </p>
+      <p>
+        Short abbreviations are the danger here, so most are deliberately not matched on their own:
+        <em>ILC</em> means innate lymphoid cell far more often than invasive lobular carcinoma, and
+        <em>IDC</em> is also interdigitating dendritic cell. Those are detected from their full
+        phrase only, which means a study that writes nothing but the abbreviation will carry no
+        subtype — absence of a label is not evidence of absence. Subtypes are only assigned to
+        records that already read as cancer.
+      </p>
 
       <h2>Imaging-based vs sequencing-based</h2>
       <p>

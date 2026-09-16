@@ -206,27 +206,107 @@ SC_PLATFORM = _c(
     ]
 )
 
+# Cancer subtypes. A record can carry several (LUAD *and* EGFR-mutant), so this
+# is matched as a multi-value field rather than a single winner.
+#
+# Every pattern here must be unambiguous IN THIS CORPUS. Short abbreviations are
+# the trap: ILC is "innate lymphoid cell" far more often than "invasive lobular
+# carcinoma", FL and MCL collide with gene and cell-type names, IDC is also
+# "interdigitating dendritic cell", BCC is also "B-cell ...". Those are matched
+# by their full phrase only. Add a bare abbreviation here only after checking it
+# against the catalog for collisions.
+SUBTYPES = _c(
+    [
+        # lung
+        ("LUAD", r"\bluad\b|lung adenocarcinoma|adenocarcinoma of (the )?lungs?|pulmonary adenocarcinoma"),
+        ("LUSC", r"\blusc\b|lung squamous|squamous cell (carcinoma )?of (the )?lungs?|pulmonary squamous"),
+        ("LCNEC / large cell", r"\blcnec\b|large[- ]cell (neuroendocrine )?carcinoma"),
+        ("Adenosquamous", r"adenosquamous"),
+        ("EGFR-mutant", r"\begfr[- ](mutant|mutated|driven|altered)|egfr mutation"),
+        ("ALK-rearranged", r"\balk[- ](rearrang|fusion|positive|translocat)"),
+        ("KRAS-mutant", r"\bkras[- ]?(g12|g13|mutant|mutated|mutation)"),
+        # breast
+        ("TNBC", r"\btnbc\b|triple[- ]negative breast"),
+        ("HER2-positive", r"her2[- ]?(positive|enriched|amplified)|erbb2[- ]amplif"),
+        ("Luminal", r"luminal [ab]\b|luminal subtype|luminal breast"),
+        ("Invasive ductal (IDC)", r"invasive ductal carcinoma"),
+        ("Invasive lobular (ILC)", r"invasive lobular carcinoma"),
+        ("DCIS", r"\bdcis\b|ductal carcinoma in situ"),
+        # kidney
+        ("ccRCC", r"\bccrcc\b|clear[- ]cell renal"),
+        ("pRCC", r"\bprcc\b|papillary renal"),
+        ("chRCC", r"\bchrcc\b|chromophobe renal"),
+        # prostate
+        ("CRPC", r"\bm?crpc\b|castration[- ]resistant"),
+        ("NEPC", r"\bnepc\b|neuroendocrine prostate"),
+        # brain
+        ("IDH-mutant", r"\bidh[12]?[- ]?(mutant|mutated)"),
+        ("IDH-wildtype", r"\bidh[12]?[- ]?(wild[- ]?type|wt)\b"),
+        ("DIPG / diffuse midline", r"\bdipg\b|diffuse (intrinsic pontine|midline) glioma"),
+        # blood
+        ("AML", r"\baml\b|acute myeloid leuk"),
+        ("B-ALL", r"\bb-all\b|b[- ]cell acute lymphoblastic"),
+        ("T-ALL", r"\bt-all\b|t[- ]cell acute lymphoblastic"),
+        ("CLL", r"\bcll\b|chronic lymphocytic leuk"),
+        ("CML", r"\bcml\b|chronic myeloid leuk"),
+        ("MDS", r"\bmds\b|myelodysplastic"),
+        ("DLBCL", r"\bdlbcl\b|diffuse large b[- ]cell lymphoma"),
+        ("Follicular lymphoma", r"follicular lymphoma"),
+        ("Mantle cell lymphoma", r"mantle cell lymphoma"),
+        ("Hodgkin", r"hodgkin"),
+        # GI
+        ("ESCC", r"\bescc\b|(o)?esophageal squamous"),
+        ("Esophageal adenocarcinoma", r"(o)?esophageal adenocarcinoma"),
+        ("iCCA", r"\bicca\b|intrahepatic cholangiocarcinoma"),
+        ("eCCA", r"\becca\b|extrahepatic cholangiocarcinoma|perihilar cholangio"),
+        ("MSI-high", r"\bmsi-?h\b|microsatellite instab"),
+        ("MSS", r"microsatellite stable"),
+        ("Signet ring", r"signet[- ]ring"),
+        # pancreas / liver
+        ("PDAC", r"\bpdac\b|pancreatic ductal adenocarcinoma"),
+        ("HCC", r"\bhcc\b|hepatocellular carcinoma"),
+        # bladder
+        ("MIBC", r"\bmibc\b|muscle[- ]invasive bladder"),
+        ("NMIBC", r"\bnmibc\b|non[- ]muscle[- ]invasive bladder"),
+        # gynaecological
+        ("HGSOC", r"\bhgsoc\b|high[- ]grade serous"),
+        ("Ovarian clear cell", r"ovarian clear cell"),
+        # head & neck / skin
+        ("HNSCC", r"\bhnscc\b|head and neck squamous"),
+        ("OSCC", r"\boscc\b|oral squamous cell"),
+        ("HPV-positive", r"hpv[- ]?(positive|associated|driven)"),
+        ("Basal cell carcinoma", r"basal cell carcinoma"),
+        ("cSCC", r"\bcscc\b|cutaneous squamous cell"),
+    ]
+)
+
 CANCER = _c(
     [
-        ("NSCLC", r"non-?small[- ]cell lung|\bnsclc\b|lung adenocarcinoma|\bluad\b|lung squamous|\blusc\b"),
+        ("NSCLC", r"non-?small[- ]cell lung|\bnsclc\b|lung adenocarcinoma|\bluad\b|lung squamous|\blusc\b"
+                  r"|adenocarcinoma of (the )?lungs?|pulmonary adenocarcinoma|\blcnec\b|bronchioloalveolar"
+                  r"|lepidic|adenosquamous carcinoma of (the )?lung|large[- ]cell carcinoma of (the )?lung"),
         ("SCLC", r"small[- ]cell lung cancer|\bsclc\b"),
         ("Lung cancer (other)", r"lung (cancer|tumou?r|carcinoma|metasta|neoplas)|pulmonary (cancer|carcinoma)|mesothelioma"),
-        ("Breast cancer", r"breast (cancer|tumou?r|carcinoma)|triple[- ]negative breast|\btnbc\b|ductal carcinoma in situ|\bdcis\b"),
+        ("Breast cancer", r"breast (cancer|tumou?r|carcinoma)|triple[- ]negative breast|\btnbc\b"
+                          r"|ductal carcinoma in situ|\bdcis\b|invasive (ductal|lobular) carcinoma"
+                          r"|luminal [ab] (breast|subtype)"),
         ("Colorectal cancer", r"colorectal|\bcrc\b|colon (cancer|adenocarcinoma|tumou?r)|rectal cancer"),
-        ("Glioma / GBM", r"glioblastoma|\bgbm\b|\bglioma\b|astrocytoma|oligodendroglioma|medulloblastoma"),
+        ("Glioma / GBM", r"glioblastoma|\bgbm\b|\bglioma\b|astrocytoma|oligodendroglioma|medulloblastoma"
+                         r"|ependymoma|\bdipg\b|diffuse (intrinsic pontine|midline) glioma"),
+        ("Meningioma", r"meningioma"),
         ("Pancreatic cancer", r"pancreatic (cancer|ductal|adenocarcinoma|tumou?r)|\bpdac\b"),
-        ("Prostate cancer", r"prostate (cancer|tumou?r|adenocarcinoma)"),
+        ("Prostate cancer", r"prostate (cancer|tumou?r|adenocarcinoma)|\bm?crpc\b|\bnepc\b|castration[- ]resistant"),
         ("Melanoma", r"melanoma"),
-        ("Liver / HCC", r"hepatocellular|\bhcc\b|liver (cancer|tumou?r)|cholangiocarcinoma"),
+        ("Liver / HCC", r"hepatocellular|\bhcc\b|liver (cancer|tumou?r)|cholangiocarcinoma|\bicca\b|\becca\b"),
         ("Gastric cancer", r"gastric (cancer|adenocarcinoma|tumou?r)|stomach cancer"),
-        ("Ovarian cancer", r"ovarian (cancer|carcinoma|tumou?r)|\bhgsoc\b"),
-        ("Kidney / RCC", r"renal cell carcinoma|\brcc\b|kidney (cancer|tumou?r)|wilms"),
-        ("Head & neck cancer", r"head and neck|\bhnscc\b|oral squamous|nasopharyngeal|laryngeal cancer"),
-        ("Lymphoma", r"lymphoma"),
-        ("Leukemia", r"leukemia|leukaemia|\baml\b|myelodysplas"),
+        ("Ovarian cancer", r"ovarian (cancer|carcinoma|tumou?r|clear cell)|\bhgsoc\b"),
+        ("Kidney / RCC", r"renal cell carcinoma|\brcc\b|\bccrcc\b|\bprcc\b|\bchrcc\b|kidney (cancer|tumou?r)|wilms"),
+        ("Head & neck cancer", r"head and neck|\bhnscc\b|oral squamous|\boscc\b|nasopharyngeal|laryngeal cancer"),
+        ("Lymphoma", r"lymphoma|\bdlbcl\b"),
+        ("Leukemia", r"leukemia|leukaemia|\baml\b|\bcll\b|\bcml\b|\bapl\b|\bb-all\b|\bt-all\b|myelodysplas"),
         ("Multiple myeloma", r"multiple myeloma|plasma cell myeloma"),
-        ("Esophageal cancer", r"esophageal (cancer|carcinoma)|oesophageal (cancer|carcinoma)"),
-        ("Bladder cancer", r"bladder cancer|urothelial (carcinoma|cancer)"),
+        ("Esophageal cancer", r"(o)?esophageal (cancer|carcinoma|adenocarcinoma|squamous)|\bescc\b"),
+        ("Bladder cancer", r"bladder cancer|urothelial (carcinoma|cancer)|\bmibc\b|\bnmibc\b"),
         ("Cervical cancer", r"cervical (cancer|carcinoma)"),
         ("Endometrial cancer", r"endometrial (cancer|carcinoma)|uterine (cancer|carcinoma)"),
         ("Sarcoma", r"sarcoma|\bgist\b"),
@@ -312,6 +392,17 @@ def first_match(vocab, text):
     return None
 
 
+def all_matches(vocab, text, limit=6):
+    """Every label whose pattern hits — for fields a record can hold several of."""
+    out = []
+    for name, rx in vocab:
+        if rx.search(text):
+            out.append(name)
+            if len(out) >= limit:
+                break
+    return out
+
+
 def best_tissue(text):
     """Pick the tissue with the most keyword hits, not merely the first listed."""
     best, best_score = None, 0
@@ -369,6 +460,9 @@ def classify(title, body, extra=""):
         "has_sc": has_sc,
         "disease": cancer or other or "Unspecified",
         "disease_group": "Cancer" if cancer else ("Other disease" if other else "Unspecified"),
+        # Subtypes are only meaningful once a record reads as cancer; leaving the
+        # gate off would tag immunology studies with blood-cancer abbreviations.
+        "subtypes": all_matches(SUBTYPES, disease_text) if cancer else [],
         "tissue": best_tissue(text),
         "cells": cell_count(text),
         "access": "Controlled" if CONTROLLED_RE.search(text) else "Open",
@@ -438,6 +532,7 @@ def build():
                 "sc_platform": c["sc_platform"],
                 "disease": c["disease"],
                 "disease_group": c["disease_group"],
+                "subtypes": c["subtypes"],
                 "tissue": c["tissue"],
                 "organism": organism(r["taxon"]),
                 "samples": r["n"],
@@ -475,6 +570,7 @@ def build():
                 "sc_platform": c["sc_platform"],
                 "disease": c["disease"],
                 "disease_group": c["disease_group"],
+                "subtypes": c["subtypes"],
                 "tissue": c["tissue"],
                 "organism": organism(r["taxon"]),
                 "samples": r["n"],
@@ -524,6 +620,7 @@ def build():
                 "sc_platform": c["sc_platform"],
                 "disease": c["disease"],
                 "disease_group": c["disease_group"],
+                "subtypes": c["subtypes"],
                 "tissue": c["tissue"],
                 "organism": organism("", text),
                 "samples": 0,
