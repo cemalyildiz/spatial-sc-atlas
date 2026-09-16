@@ -33,7 +33,7 @@ DATA = ROOT / "data"
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
 BIOSTUDIES = "https://www.ebi.ac.uk/biostudies/api/v1/arrayexpress/search"
 NCBI_KEY = os.environ.get("NCBI_API_KEY", "").strip()
-UA = "spatial-sc-atlas/1.0 (https://github.com/cemalyildiz/spatial-sc-atlas)"
+UA = "spatial-sc-atlas-cld/1.0 (https://github.com/cemalyildiz/spatial-sc-atlas-cld)"
 
 # Polite pacing: 10 req/s with an API key, 3 req/s without.
 PAUSE = 0.12 if NCBI_KEY else 0.40

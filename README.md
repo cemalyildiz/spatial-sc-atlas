@@ -5,7 +5,7 @@ datasets for cancer and other diseases, harvested straight from
 [NCBI GEO](https://www.ncbi.nlm.nih.gov/geo/) and
 [EBI ArrayExpress](https://www.ebi.ac.uk/biostudies/arrayexpress).
 
-**→ [cemalyildiz.github.io/spatial-sc-atlas](https://cemalyildiz.github.io/spatial-sc-atlas/)**
+**→ [cemalyildiz.github.io/spatial-sc-atlas-cld](https://cemalyildiz.github.io/spatial-sc-atlas-cld/)**
 
 Built for the question "which public dataset should I actually use?" rather than for reading
 abstracts. The filter that usually matters first is **imaging-based vs sequencing-based**, and the
