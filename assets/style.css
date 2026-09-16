@@ -326,6 +326,13 @@ a { color: var(--accent-ink); }
 .badge-spatial { background: color-mix(in srgb, var(--series-2) 16%, var(--surface-1)); color: var(--series-2); border: 1px solid color-mix(in srgb, var(--series-2) 35%, transparent); }
 .badge-sc      { background: color-mix(in srgb, var(--series-3) 16%, var(--surface-1)); color: var(--series-3); border: 1px solid color-mix(in srgb, var(--series-3) 35%, transparent); }
 
+.sib-chip {
+  font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 20px;
+  color: var(--accent-ink); background: var(--accent-soft); white-space: nowrap;
+}
+
+.dd-note { margin-top: 3px; font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+
 .sub-chip {
   font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 20px;
   color: var(--text-secondary); border: 1px solid var(--border-strong);

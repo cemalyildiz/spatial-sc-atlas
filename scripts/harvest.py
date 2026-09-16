@@ -181,9 +181,18 @@ SEQUENCING = _c(
         ("DBiT-seq", r"\bdbit-?seq\b"),
         ("Curio Seeker", r"\bcurio seeker\b"),
         ("Open-ST", r"\bopen-?st\b"),
+        # Plenty of studies never write "spatial transcriptomics" out — they say
+        # "ST" and nothing else, which is how a spatial series ends up looking
+        # like a single-cell one. A bare \bST\b is far too noisy (ST-EPN =
+        # supratentorial ependymoma, ST segment, ST2), so ST is only accepted
+        # next to a word that makes it unambiguous.
         (
             "Spatial (unspecified)",
-            r"spatial transcriptom|spatially resolved|spatial gene expression|spatial rna",
+            r"spatial transcriptom|spatially resolved|spatial gene expression|spatial rna"
+            r"|\[st\]|\(st\)"
+            r"|\bst[- ](data|slides?|spots?|sections?|samples?|experiments?|profil\w+|analys\w+|arrays?|methods?|platforms?)\b"
+            r"|\b(scrna-?seq|snrna-?seq|single[- ]cell)\s+and\s+st\b"
+            r"|\bst\s+and\s+(scrna|snrna|single[- ]cell)",
         ),
     ]
 )
@@ -489,11 +498,72 @@ SC_CANCER_QUERY = (
     'AND "Homo sapiens"[Organism]'
 )
 
+# Studies that only ever write "ST" are invisible to SPATIAL_QUERY. A bare "ST"
+# term is useless in E-utilities, so search the phrases instead.
+ST_QUERY = (
+    '("ST data"[All Fields] OR "ST slides"[All Fields] OR "ST spots"[All Fields] '
+    'OR "ST sections"[All Fields] OR "ST profiling"[All Fields] '
+    'OR "ST analysis"[All Fields] OR "ST experiments"[All Fields]) '
+    'AND gse[Entry Type] AND ("Homo sapiens"[Organism] OR "Mus musculus"[Organism])'
+)
+
 AE_SPATIAL_QUERY = (
     'spatial transcriptomics OR Visium OR Xenium OR MERFISH OR CosMx OR GeoMx '
     'OR "Slide-seq" OR "Stereo-seq"'
 )
 AE_SC_QUERY = 'single cell RNA-seq AND (cancer OR tumour OR carcinoma)'
+
+
+def group_key(text):
+    """Key for spotting subseries of one study.
+
+    GEO splits many studies into a SuperSeries plus one subseries per assay —
+    GSE189357 holds the scRNA-seq half and GSE189487 the spatial half of the
+    same LUAD atlas. esummary does not expose that link (the `relations` field
+    comes back empty for both), but the subseries share the study abstract
+    verbatim, so the normalised abstract identifies the group.
+    """
+    t = re.sub(r"\s+", " ", (text or "")).strip().lower()
+    return t[:300] if len(t) >= 120 else ""
+
+
+def link_siblings(rows):
+    """Link subseries of one study and promote pairing to the study level.
+
+    A subseries that only carries scRNA-seq is still part of a paired study when
+    a sibling carries the spatial half. The record keeps its own platform; only
+    the modality is promoted, and `pairing` records whether the pairing comes
+    from the record itself or from its siblings, so the site can say which.
+    """
+    groups = {}
+    for r in rows:
+        k = r.pop("_k", "")
+        if k:
+            groups.setdefault(k, []).append(r)
+
+    promoted = 0
+    for members in groups.values():
+        # A very large group means the key caught boilerplate, not one study.
+        if not 2 <= len(members) <= 8:
+            continue
+        accessions = [m["accession"] for m in members]
+        has_spatial = any(m["modality"] in ("spatial", "paired") for m in members)
+        has_sc = any(
+            m["modality"] in ("singlecell", "paired") or m["sc_platform"]
+            for m in members
+        )
+        for m in members:
+            m["siblings"] = [a for a in accessions if a != m["accession"]]
+            if has_spatial and has_sc and m["modality"] != "paired":
+                m["modality"] = "paired"
+                m["pairing"] = "series"
+                promoted += 1
+
+    for r in rows:
+        r.pop("_k", None)
+        r.setdefault("siblings", [])
+        r.setdefault("pairing", "record" if r["modality"] == "paired" else "")
+    return promoted
 
 
 def geo_url(acc):
@@ -511,6 +581,10 @@ def build():
     print("GEO: spatial search", flush=True)
     spatial_ids = esearch(SPATIAL_QUERY)
     print(f"  {len(spatial_ids)} ids", flush=True)
+    print("GEO: bare-'ST' phrase search", flush=True)
+    st_ids = esearch(ST_QUERY)
+    print(f"  {len(st_ids)} ids", flush=True)
+    spatial_ids = list(dict.fromkeys(spatial_ids + st_ids))
     spatial = esummary(spatial_ids)
 
     for r in spatial:
@@ -526,6 +600,7 @@ def build():
                 "db": "GEO",
                 "title": squash(r["title"], 190),
                 "description": squash(r["summary"], 320),
+                "_k": group_key(r["summary" if "summary" in r else "content"]),
                 "modality": "paired" if c["has_sc"] else "spatial",
                 "platform": c["platform"],
                 "platform_class": c["platform_class"],
@@ -564,9 +639,17 @@ def build():
                 "db": "GEO",
                 "title": squash(r["title"], 190),
                 "description": squash(r["summary"], 320),
-                "modality": "singlecell",
-                "platform": c["sc_platform"] or "scRNA-seq (unspecified)",
-                "platform_class": "sequencing",
+                "_k": group_key(r["summary" if "summary" in r else "content"]),
+                # A record reached through the cancer/scRNA query can still be
+                # a spatial series (it says "ST", not "spatial transcriptomics").
+                # Let the classification decide, not the query it arrived on.
+                "modality": (
+                    ("paired" if c["has_sc"] else "spatial")
+                    if c["platform"]
+                    else "singlecell"
+                ),
+                "platform": c["platform"] or c["sc_platform"] or "scRNA-seq (unspecified)",
+                "platform_class": c["platform_class"] or "sequencing",
                 "sc_platform": c["sc_platform"],
                 "disease": c["disease"],
                 "disease_group": c["disease_group"],
@@ -610,6 +693,7 @@ def build():
                 "db": "ArrayExpress",
                 "title": squash(r["title"], 190),
                 "description": squash(r["content"], 320),
+                "_k": group_key(r["summary" if "summary" in r else "content"]),
                 "modality": (
                     ("paired" if c["has_sc"] else "spatial")
                     if c["platform"]
@@ -634,6 +718,9 @@ def build():
             }
         )
 
+    promoted = link_siblings(rows)
+    print(f"\nsubseries pairing: {promoted} records promoted to paired via a sibling series", flush=True)
+
     rows.sort(key=lambda x: (x["date"] or ""), reverse=True)
     return rows
 
@@ -648,6 +735,8 @@ def summarise(rows):
     return {
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "total": len(rows),
+        "paired_via_siblings": sum(1 for r in rows if r.get("pairing") == "series"),
+        "records_with_siblings": sum(1 for r in rows if r.get("siblings")),
         "by_modality": tally("modality"),
         "by_platform_class": tally("platform_class"),
         "by_disease_group": tally("disease_group"),

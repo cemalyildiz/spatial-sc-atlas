@@ -42,8 +42,14 @@ straight into a download script.
 Derived fields are pattern-matched from each record's title and description by the vocabularies at
 the top of [`scripts/harvest.py`](scripts/harvest.py). They are good enough to filter and browse
 with, and wrong often enough that you should open the source record — one click from every card —
-before a dataset enters an analysis. A `Paired` badge means the record text mentions both a spatial
-platform and single-cell data; it is a strong hint, not a guarantee that both live in the same series.
+before a dataset enters an analysis.
+
+A `Paired` badge means one of two things: the record's own text mentions both a spatial platform and
+single-cell data, or the record belongs to a study GEO split across several series and a sibling
+carries the other half. The second kind shows a `+N series` chip and lists the sibling accessions.
+GEO's API does not expose SuperSeries links (`relations` is empty for subseries), so siblings are
+found by grouping records that share the study abstract verbatim — a heuristic, so check before
+relying on it.
 
 Improving a label means editing a regex in `harvest.py` and re-running the harvest — not hand-editing
 `data/datasets.json`, which is regenerated on every run.

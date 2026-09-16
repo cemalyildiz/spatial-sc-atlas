@@ -9,6 +9,7 @@
   var shown = PAGE;
   var picked = new Map();      // accession -> record
   var lastFiltered = [];
+  var byAccession = Object.create(null);
 
   var F = {
     q: '',
@@ -112,7 +113,8 @@
     if (r._h) return r._h;
     r._h = (r.accession + ' ' + r.title + ' ' + r.description + ' ' + r.disease + ' ' +
             r.tissue + ' ' + r.platform + ' ' + r.organism + ' ' + (r.sc_platform || '') +
-            ' ' + (r.subtypes || []).join(' ')).toLowerCase();
+            ' ' + (r.subtypes || []).join(' ') +
+            ' ' + (r.siblings || []).join(' ')).toLowerCase();
     return r._h;
   }
 
@@ -187,7 +189,11 @@
   function badge(r) {
     var b = el('span', 'badge badge-' + (r.modality === 'singlecell' ? 'sc' : r.modality));
     b.textContent = MODALITY_SHORT[r.modality] || r.modality;
-    if (r.modality === 'paired') b.title = 'Both spatial and single-cell data are referenced in this record';
+    if (r.modality === 'paired') {
+      b.title = r.pairing === 'series'
+        ? 'Paired at the study level: a sibling series carries the other half — see "Other series in this study"'
+        : 'Both spatial and single-cell data are referenced in this record';
+    }
     return b;
   }
 
@@ -217,6 +223,11 @@
       var t = el('span', 'tech tech-' + (r.platform_class || 'sequencing'), r.platform);
       t.title = (CLASS_LABEL[r.platform_class] || '') + ' platform';
       top.appendChild(t);
+    }
+    if (r.siblings && r.siblings.length) {
+      var sib = el('span', 'sib-chip', '+' + r.siblings.length + ' series');
+      sib.title = 'Same study, other series: ' + r.siblings.join(', ');
+      top.appendChild(sib);
     }
     (r.subtypes || []).slice(0, 3).forEach(function (s) {
       var chip = el('span', 'sub-chip', s);
@@ -545,6 +556,28 @@
     if (r.sc_platform && r.modality !== 'singlecell') row('Single-cell assay', r.sc_platform);
     row('Disease', r.disease + (r.disease_group !== 'Unspecified' ? ' (' + r.disease_group + ')' : ''));
     if (r.subtypes && r.subtypes.length) row('Subtype', r.subtypes.join(' · '));
+    if (r.siblings && r.siblings.length) {
+      dl.appendChild(el('dt', null, 'Other series'));
+      var dd = el('dd');
+      r.siblings.forEach(function (acc, i) {
+        if (i) dd.appendChild(document.createTextNode(' · '));
+        var other = byAccession[acc];
+        if (other) {
+          var a = el('a', null, acc);
+          a.href = '#';
+          a.addEventListener('click', function (ev) { ev.preventDefault(); openDetail(other); });
+          a.title = other.title;
+          dd.appendChild(a);
+        } else {
+          dd.appendChild(document.createTextNode(acc));
+        }
+      });
+      dd.appendChild(el('div', 'dd-note',
+        r.pairing === 'series'
+          ? 'Same study, split across GEO series — this record is counted as paired because of them.'
+          : 'Same study, split across GEO series.'));
+      dl.appendChild(dd);
+    }
     row('Tissue / organ', r.tissue);
     row('Organism', r.organism);
     row('Samples', r.samples ? nf(r.samples) : null);
@@ -638,6 +671,7 @@
       ['Production method', function (r) { return CLASS_LABEL[r.platform_class] || '—'; }],
       ['Disease', function (r) { return r.disease; }],
       ['Subtype', function (r) { return (r.subtypes || []).join(' · ') || '\u2014'; }],
+      ['Other series', function (r) { return (r.siblings || []).join(' · ') || '\u2014'; }],
       ['Tissue', function (r) { return r.tissue; }],
       ['Organism', function (r) { return r.organism; }],
       ['Samples', function (r) { return r.samples ? nf(r.samples) : '—'; }],
@@ -908,7 +942,7 @@
 
   function exportCsv() {
     var cols = ['accession', 'db', 'title', 'modality', 'platform', 'platform_class',
-                'sc_platform', 'disease', 'disease_group', 'subtypes', 'tissue', 'organism',
+                'sc_platform', 'pairing', 'siblings', 'disease', 'disease_group', 'subtypes', 'tissue', 'organism',
                 'samples', 'cells', 'year', 'date', 'pmid', 'access', 'url'];
     var lines = [cols.join(',')];
     lastFiltered.forEach(function (r) {
@@ -1011,6 +1045,8 @@
       .then(function (payload) {
         DATA = payload.datasets || [];
         META = payload.meta || {};
+        byAccession = Object.create(null);
+        DATA.forEach(function (r) { byAccession[r.accession] = r; });
         $('#stamp').textContent = META.generated ? 'Updated ' + META.generated : '';
         readURL();
         buildFilters();

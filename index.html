@@ -133,9 +133,12 @@
         Derived fields are pattern-matched from each record's title and description. They are good
         enough to filter and browse with, and they are wrong often enough that you should open the
         source record — one click from every card — before a dataset goes into an analysis. Records
-        carrying a <span class="badge badge-paired">Paired</span> badge are the ones whose text
-        mentions both a spatial platform and single-cell data; confirm the pairing on the GEO page,
-        since a mention is not a guarantee that both live in the same series.
+        carrying a <span class="badge badge-paired">Paired</span> badge either mention both a spatial
+        platform and single-cell data in their own text, or belong to a study that GEO split across
+        several series where a sibling carries the other half. Those show a
+        <span class="sib-chip">+1 series</span> chip and list the sibling accessions in the detail
+        panel — so a paired badge never means one accession necessarily holds everything. Confirm
+        on the source page before relying on it.
       </p>
 
       <h2>Modalities</h2>
@@ -163,6 +166,24 @@
         phrase only, which means a study that writes nothing but the abbreviation will carry no
         subtype — absence of a label is not evidence of absence. Subtypes are only assigned to
         records that already read as cancer.
+      </p>
+
+      <h2>Studies split across several series</h2>
+      <p>
+        GEO often splits one study into a SuperSeries with a subseries per assay — the scRNA-seq
+        half under one accession, the spatial half under another. Its API does not expose that link
+        (the relations field comes back empty), but subseries reuse the study abstract verbatim, so
+        records sharing an abstract are grouped here and treated as one study for pairing. That is
+        why a record whose own data is single-cell can still be marked paired: its sibling holds the
+        spatial half. The grouping is a heuristic on shared text, so check the siblings really are
+        one study before building on it.
+      </p>
+      <p>
+        A related trap: many spatial studies never write "spatial transcriptomics" at all — they
+        write <strong>ST</strong> and nothing else, which makes a spatial series look single-cell.
+        ST is matched here only beside a word that removes the ambiguity (<em>ST data</em>,
+        <em>ST slides</em>, a bracketed <em>[ST]</em> title), because a bare ST is far more often
+        supratentorial ependymoma, ST-segment or the gene ST2.
       </p>
 
       <h2>Imaging-based vs sequencing-based</h2>
